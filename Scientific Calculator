@@ -90,7 +90,7 @@ void InfixForm(string exps, queue<string>& infix, unordered_map<string, string> 
         else if ((i < explength) && (operatorcheck(ch) || ch == '(' || ch == ')'))  //if expression length less than i and ch contains parenthesis proceed
         {
             key = ch;
-            infix.push(key);
+            infix.push(key); 
             i++;			//post increment
 
             if (ch == '(')
