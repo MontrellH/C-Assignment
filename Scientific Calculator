@@ -1,0 +1,348 @@
+/*
+COP 3530
+Project 1
+By: Montrell Harrington
+*/
+
+
+#include <iostream>
+#include <string>
+#include <cctype>
+#include <queue>
+#include <stack>
+#include <cmath>
+#include <unordered_map>
+#include <locale>
+using namespace std;
+
+
+bool operatorcheck(char op)	//Function to determine if op is an operator
+{
+    if (op == '+' ||
+        op == '-' ||
+        op == '*' ||
+        op == '/' ||
+        op == '^')
+        return true;
+    else
+        return false;
+}
+
+int precedence(char ch)	//Function to determine precedence of ops
+{
+    switch (ch)
+    {
+    case '(':
+        return 0;
+        break;
+    case '+':
+    case '-':
+        return 1;
+        break;
+    case '*':
+    case '/':
+        return 2;
+        break;
+    case '^':
+        return 3;
+        break;
+    default :
+        return 0;
+        break;
+    }
+}
+
+void clear(queue<string>& q)
+{
+    queue<string> empty;
+    swap(q, empty);
+}
+
+void InfixForm(string exps, queue<string>& infix, unordered_map<string, string> &mymap) // Function to process expression and store into infix
+{
+    int leftcount = 0, rightcount = 0, i = 0, explength = exps.length(); //initialize variables
+    string value;
+    char ch;
+    string key = "";
+
+    /*if (exps == "")			// Debugging purposes
+    	infix.push("0");*/
+
+
+    while (i < explength)
+    {
+        ch = exps[i]; //stores ch into exps
+        key = "";
+
+        if (isdigit(ch) || ch == '.')	//if ch is a digit or contains a decimal point proceed
+        {
+            while (i < explength && (isdigit(exps[i]) || exps[i] == '.'))  //while expression length less than i and exp is a digit or contains a decimal point proceed
+            {
+                key += ch;
+                i++;		//increment i by 1 after operation and return the original value of i
+                if (i != explength)
+                    ch = exps[i];		//If "i" not equal to expression length, store ch into exps
+            }
+
+            infix.push(key);
+        }
+
+        else if ((i < explength) && (operatorcheck(ch) || ch == '(' || ch == ')'))  //if expression length less than i and ch contains parenthesis proceed
+        {
+            key = ch;
+            infix.push(key);
+            i++;			//post increment
+
+            if (ch == '(')
+                leftcount++;	//post increment left count	for left parenthesis
+            else if (ch == ')')
+                rightcount++;	//post increment right count for right parenthesis
+        }
+
+        else if ((i < explength) && (ch == ' '))
+            i++;			//post increment
+
+		else if ((i < explength && (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'))) {
+			key += ch;
+			i++;		
+			if (i != explength)
+				ch = exps[i];
+
+			while (i < explength && ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')))
+			{
+				key += ch;
+				i++;		//increment i by 1 after operation and return the original value of i
+				if (i != explength)
+					ch = exps[i];		//If "i" not equal to expression length, store ch into exps
+			}
+
+			// find the value of the variable from the map
+			// if it isnt there, then we give error
+			unordered_map<string, string>::const_iterator got = mymap.find(key);
+			//cout << "Trying to find:" << key << endl;			debugging purposes
+			if (got == mymap.end()) 
+				throw "Undeclared-Variable";
+		
+			else {
+				string value = got->second;
+				infix.push(value);
+			}
+
+
+		}
+
+    }
+}
+
+
+void PostfixConv(queue<string> infix, queue<string>& postfix)	//function to convert infix to postfix
+{
+    string key;
+    stack<string> ops;
+
+
+    //if (infix.empty()) //  Debugging purposes
+    //return;
+
+    do
+    {
+        key = infix.front();		//key equals front of queue in  infix
+        infix.pop();
+
+        if (key == "(")				//if key equals
+            ops.push(key);
+
+        else if (isdigit(key[0]))
+            postfix.push(key);
+
+        else if (key == ")")
+        {
+            do
+            {
+                postfix.push(ops.top());
+                ops.pop();
+            }
+
+            while (ops.top() != "(");
+            ops.pop();
+        }
+
+        else if (operatorcheck(key[0]))
+        {
+            if (ops.empty())	//if ops stack is empty, push key into ops stack
+                ops.push(key);
+
+            else if (precedence(ops.top()[0]) < precedence(key[0]))
+                ops.push(key);
+
+            else
+            {
+                do
+                {
+                    postfix.push(ops.top());
+                    ops.pop();
+                }
+
+                while (!ops.empty() && (precedence(ops.top()[0]) > precedence(key[0]) || precedence(ops.top()[0]) == precedence(key[0])));
+                ops.push(key);
+            }
+        }
+    }
+
+    while (!infix.empty());
+
+    while (!ops.empty())
+    {
+        postfix.push(ops.top());
+        ops.pop();
+    }
+}
+
+double performoperation(queue<string>& postfix)		//evaluate postfix form
+{
+    double value1, value2, result = 0.0;	//declare variables
+    string key;
+    stack <double> product;
+
+    do
+    {
+        key = postfix.front();		//key equals front of queue in  postfix
+        postfix.pop();
+
+        if (isdigit(key[0]))
+        {
+            product.push(atof(key.c_str())); //then converts the string "key" into a double and pushes it onto product
+        }
+
+        else if (operatorcheck(key[0]))		//parse through operators and perform evaluation
+        {
+            switch (key[0])
+            {
+            case('+') :
+                value2 = product.top();		//value 2 equals the top of product
+                product.pop();				//pop product
+                value1 = product.top();		//value 1 equlas the top of product
+                product.pop();				//pop product
+                product.push(value1 + value2);	//push the result of value 1 and value 2 onto product
+                break;
+
+            case('-') :
+                value2 = product.top();
+                product.pop();
+                value1 = product.top();
+                product.pop();
+                product.push(value1 - value2);
+                break;
+
+            case('*') :
+                value2 = product.top();
+                product.pop();
+                value1 = product.top();
+                product.pop();
+                product.push(value1 * value2);
+                break;
+
+            case('/') :
+                value2 = product.top();
+                product.pop();
+                value1 = product.top();
+                product.pop();
+                if (value2 != 0)
+                {
+                    product.push(value1 / value2);
+                }
+                else {
+                    throw "Division-By-Zero";
+                }
+                break;
+
+            case('^') :
+                value2 = product.top();
+                product.pop();
+                value1 = product.top();
+                product.pop();
+                product.push(pow(value1, value2));
+                break;
+            }
+        }
+    } while (!postfix.empty());	//while postfix queue is not empty
+
+    if (!product.empty()) {
+        result = product.top();  //result equal to top of product in queue
+        product.pop();	//pop product
+    }
+
+    return result;
+}
+
+	string trim(string& str) {
+			size_t first = str.find_first_not_of(' ');
+			size_t last = str.find_last_not_of(' ');
+			return str.substr(first, (last - first + 1));
+		}
+
+bool isLetStatement(string exps, unordered_map<string, string> &mymap){
+	
+	if (exps.substr(0, 3) == "let") {
+		exps.find("=");
+		string var = exps.substr(3, exps.find('=') - 3);
+		var = trim(var);
+		//cout << "letVar:" << var << endl;			debugging purposes
+
+		string value = exps.substr(exps.find('=') + 1);
+		value = trim(value);
+		//cout << "letValue:" << value << endl;		debugging purposes
+			
+		queue <string> infix;
+		queue <string> postfix;
+
+		InfixForm(value, infix, mymap);
+		PostfixConv(infix, postfix);
+		value = to_string(performoperation(postfix));
+
+		mymap[var] = value;
+		
+		return true;
+		 
+	} else return false;
+}
+
+int main()
+{
+    string exps;
+    queue <string> infix;
+    queue <string> postfix;
+    unordered_map<string, string> mymap;
+
+    while(true) {
+
+		try {
+
+			clear(infix);
+
+			getline(cin, exps);
+
+			if (exps == "quit") {
+				break;
+			}
+
+			if (isLetStatement(exps, mymap)) {
+				
+			} else {
+
+				InfixForm(exps, infix, mymap);	//throws expression into InfixForm and stores product into infix
+
+				clear(postfix);
+
+				PostfixConv(infix, postfix);	//throws infix into PostfixConv and stores product into postfix
+
+				cout << performoperation(postfix) << endl;	//displays result
+			}
+        }
+        catch (const char* e) {
+			cout << e << endl;
+        }
+
+    }
+    return 0;
+}
