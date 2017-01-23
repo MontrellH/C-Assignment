@@ -1,0 +1,42 @@
+#include<iostream>
+using namespace std;
+
+//Homework #1
+//Montrell Harrington
+
+int main();
+void InsertionSort(int[], int);
+
+int main() {
+
+	int m;
+	cin >> m;
+	int a[m];
+	for (int i = 1;i <= m;i++)
+	{
+		cin >> a[i];
+	}
+
+	InsertionSort(a, m);
+
+	for (int l = 1;l <= m;l++)
+	{
+		cout << a[l] << endl;
+	}
+}
+
+void InsertionSort(int a[], int m)
+{
+	int t, i, j;
+	for (j = 2;j <= m;j++)
+	{
+		t = a[j];
+		i = j - 1;
+		while ((i>0) && (a[i]>t))
+		{
+			a[i + 1] = a[i];
+			i = i - 1;
+		}
+		a[i + 1] = t;
+	}
+}
