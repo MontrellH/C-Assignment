@@ -39,4 +39,4 @@ void InsertionSort(int a[], int m)
 		}
 		a[i + 1] = t;
 	}
-}
+} 
