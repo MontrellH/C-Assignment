@@ -1,0 +1,369 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
+#include <iostream>
+#include <string>
+#include <climits>
+
+using namespace std;
+
+struct longest_increasing_subsequence
+{
+	int length;			//stores length of longest increasing subsequence
+	int* subsequence;	//stores longest increasing subsequence
+
+	int get_tail_index_linear(const int& left, const int& right, const int& item, int* list, int* tail_indices)
+	{
+		int i = left;
+		while (list[tail_indices[i]] < item && i <= right)
+		{
+			++i;
+		}
+		return i;
+	}
+
+	int get_tail_index_binary(int left, int right, const int& item, int* list, int* tail_indices)
+	{
+		int mid;
+		//while search area size >= 15 do binary search
+		while (right - left >= 15)
+		{
+			mid = (left + right) / 2;
+			if (list[tail_indices[mid]] >= item)
+			{
+				right = mid;
+			}
+			else
+			{
+				left = mid;
+			}
+		}
+		//once search area size < 15, do linear search and return answer
+		return get_tail_index_linear(left, right, item, list, tail_indices);
+	}
+
+	longest_increasing_subsequence(const int& n, int* list)
+	{
+		//n = list size
+		//list = pointer to list to find subsequence in
+		int* tail_indices = new int[n];		//stores indices of tails of all active lists. tail_indices[i] = index of tail of active list of length i + 1
+		int* prev_indices = new int[n];		//stores indices of values in active lists. prev_indices[i] = index of value that preceeds list[i] in active list
+		length = 1;
+		tail_indices[0] = 0;
+		prev_indices[0] = -1;
+		for (int i = 1; i < n; ++i)
+		{
+			if (list[i] < list[tail_indices[0]])
+			{
+				//list[i] is the smallest value yet encountered, replace previous smallest value with it
+				tail_indices[0] = i;
+			}
+			else if (list[i] > list[tail_indices[length - 1]])
+			{
+				//list[i] is the largest value yet encountered, extend the current list with it
+				prev_indices[i] = tail_indices[length - 1];
+				tail_indices[length++] = i;
+			}
+			else
+			{
+				//list[i] is in between the smallest and largest values yet encountered, find its proper position and replace previous tail in that position with it
+				int position = get_tail_index_binary(0, length - 1, list[i], list, tail_indices);
+				prev_indices[i] = tail_indices[position - 1];
+				tail_indices[position] = i;
+			}
+		}
+		//construct longest increasing subsequence
+		subsequence = new int[length];
+		int current_index = tail_indices[length - 1];
+		for (int i = length - 1; i != -1; --i)
+		{
+			subsequence[i] = list[current_index];
+			current_index = prev_indices[current_index];
+		}
+	}
+};
+
+int levenshtein(string one, string two)
+{
+	//strings are the same, thus edit distance is 0
+	if (one == two)
+	{
+		return 0;
+	}
+	//string one is NULL,so distance is length of string two
+	if (one.length() == 0)
+	{
+		return two.length();
+	}
+	//string two is NULL, so dist is length of string one
+	if (two.length() == 0)
+	{
+		return one.length();
+	}
+	int array1[two.length() + 1];
+	int array2[two.length() + 1];
+
+	//initalize array to contain distances to empty string
+	//array1 contains previous row of distances
+	for (unsigned i = 0; i < two.length() + 1; i++)
+	{
+		array1[i] = i;
+	}
+	//compute distance from string1[i] to string 2
+	for (unsigned i = 0; i < one.length(); i++)
+	{
+		array2[0] = i + 1;
+		for (unsigned j = 0; j < two.length(); j++)
+		{
+			//default cost is one
+			int cost = 1;
+			//if first string[i] equals second string[j], cost is 0 to change
+			if (one[i] == two[j])
+			{
+				cost = 0;
+			}
+			//cost is the minimum of cell above + 1, cell left plus 1, or cell diagonally above and left + cost
+			array2[j + 1] = min(min(array2[j] + 1, array1[j + 1] + 1), array1[j] + cost);
+		}
+		//move all values down to the next row
+		for (unsigned j = 0; j < two.length() + 1; j++)
+		{
+			array1[j] = array2[j];
+		}
+		//repeat process until the last row is reached
+	}
+	//return the last number in the array, this is the minimum edit distance
+	return array1[two.length()];
+}
+
+
+// A structure to represent an adjacency list node
+struct AdjListNode
+{
+	int dest;
+	int cost; //edit distance
+	int numGems;
+	AdjListNode* next;
+	AdjListNode(int dest, int cost, int numGems)
+	{
+		this->dest = dest;
+		this->cost = cost;
+		this->numGems = numGems;
+	}
+};
+
+// A structure to represent a graph. A graph is an array of adjacency lists.
+// Size of array will be V (number of vertices in graph)
+struct Graph
+{
+	int V;
+	AdjListNode** edges;
+
+	Graph(int V)
+	{
+		this->V = V;
+		edges = new AdjListNode*[V];
+		for (int i = 0; i < V; ++i)
+		{
+			edges[i] = NULL;
+		}
+	}
+};
+
+// Adds an edge to an undirected graph
+void addEdge(Graph* graph, int src, int dest, int weightEdge, int numGems)
+{
+	// Add an edge from src to dest.  A new node is added to the adjacency
+	// list of src.  The node is added at the begining
+	AdjListNode* newNode = new AdjListNode(dest, weightEdge, numGems);
+	newNode->next = graph->edges[src];
+	graph->edges[src] = newNode;
+}
+
+// A utility function to print the adjacenncy list representation of graph-----?NEED TO CHANGE IT!
+void printGraphEdges(Graph* graph) //print only the shortest path asked for
+{
+	cout << "Source Realm Index: (Destination Realm Index, Cost)" << endl;
+	for (int i = 0; i < graph->V; ++i)
+	{
+		cout << i << ": ";
+		AdjListNode* current = graph->edges[i];
+		while (current != NULL)
+		{
+			cout << "(" << current->dest << ", " << current->cost << ") ";
+			current = current->next;
+		}
+		cout << endl;
+	}
+}
+
+struct realm
+{
+	string charm;
+	int max_edge_cost;	//maximum edge length (edit distance) from this realm to any other
+	int* magi;				//longest increasing subsequence of magi in increasing order
+
+	realm(const string& charm, int max_edge_cost, int* magi)
+	{
+		this->charm = charm;
+		this->max_edge_cost = max_edge_cost;
+		this->magi = magi;
+	}
+};
+
+struct path
+{
+	int cost;
+	int numGems;
+
+	path(int cost, int numGems)
+	{
+		this->cost = cost;
+		this->numGems = numGems;
+	}
+};
+
+path* dijkstras(Graph* graph, int src, int dest)
+{
+	int* visited = new int[graph->V];	//visited[i] = 0 if node i unvisited, 1 if visited
+	int* d = new int[graph->V];	//d[i] = length of shortest one edge extension from existing shortest path ending at node i
+	int* g = new int[graph->V];	//g[i] = cost in gems of shortest one edge extension from existing shortest path ending at node i
+	int* p = new int[graph->V];	//p[i] = predecessor of node i on shortest one edge extension to i
+	for (int i = 0; i < graph->V; ++i)
+	{
+		visited[i] = 0;
+		d[i] = INT_MAX - 1;
+		g[i] = 0;
+		p[i] = -1;
+	}
+	d[src] = 0;
+	int current_vertex_index = src;
+	AdjListNode* current_edge;
+	for (int i = 0; i < graph->V; ++i)
+	{
+		//visit current vertex
+		current_edge = graph->edges[current_vertex_index];
+		while (current_edge != NULL)
+		{
+			if (current_edge->cost + d[current_vertex_index] < d[current_edge->dest])
+			{
+				d[current_edge->dest] = current_edge->cost + d[current_vertex_index];
+				g[current_edge->dest] = current_edge->numGems + g[current_vertex_index];
+				p[current_edge->dest] = current_vertex_index;
+			}
+			current_edge = current_edge->next;
+		}
+		visited[current_vertex_index] = 1;
+		//select next vertex to visit
+		int min_d = INT_MAX;
+		for (int j = 0; j < graph->V; ++j)
+		{
+			if (visited[j] == 0 && d[j] < min_d)
+			{
+				current_vertex_index = j;
+				min_d = d[j];
+			}
+		}
+	}
+	current_vertex_index = dest;
+	int count = 0;
+	while (current_vertex_index != src && count < graph->V)
+	{
+		if (p[current_vertex_index] < 0)
+		{
+			return new path(-1, -1);
+		}
+		count++;
+		current_vertex_index = p[current_vertex_index];
+	}
+	if (current_vertex_index != src)
+	{
+		return new path(-1, -1);
+	}
+	else
+	{
+		return new path(d[dest], g[dest]);
+	}
+}
+
+int main() {
+	int num_realms; //number of vertices
+	realm** realms;
+	string charm;
+	int num_magi;
+	string dest;
+	string source;
+
+	cin >> num_realms; //Get number of vertices
+	Graph* graph = new Graph(num_realms); // create the graph
+	realms = new realm*[num_realms];
+
+	for (int i = 0; i < num_realms; i++) {
+		cin >> charm >> num_magi;
+		int* magi = new int[num_magi];
+		for (int j = 0; j < num_magi; ++j)
+		{
+			cin >> magi[j];
+		}
+		longest_increasing_subsequence* lis = new longest_increasing_subsequence(num_magi, magi);
+		int length = lis->length;
+		magi = lis->subsequence;
+		realms[i] = new realm(charm, length, magi);
+	}
+	cin >> source;
+	cin >> dest;
+	int dest_index;		//used to find source and dest realms in realms array
+	int source_index;
+	for (int i = 0; i < num_realms; ++i)
+	{
+		if (realms[i]->charm == source)
+		{
+			source_index = i;
+		}
+		if (realms[i]->charm == dest)
+		{
+			dest_index = i;
+		}
+	}
+
+	//Fill edges
+	for (int i = 0; i < num_realms; i++) {
+		for (int j = 0; j < num_realms; j++) {
+			if (i != j) {
+				int edit_distance = levenshtein(realms[i]->charm, realms[j]->charm); //run edit distance
+				int max_edit_distance = realms[i]->max_edge_cost;
+				if (edit_distance <= max_edit_distance) { //if edit distance is less than the longest subsequence then there is an edge between the vertices
+					int* magi = realms[i]->magi;
+					int numGems = 0;
+					for (int k = 0; k < edit_distance; ++k)
+					{
+						numGems += magi[k];
+					}
+					addEdge(graph, i, j, edit_distance, numGems);
+				}
+			}
+
+		}
+	}
+
+	path* to = dijkstras(graph, source_index, dest_index);
+	path* from = dijkstras(graph, dest_index, source_index);
+
+	if (to->cost >= 0)
+	{
+		cout << to->cost << " " << to->numGems << endl;
+	}
+	else
+	{
+		cout << "IMPOSSIBLE" << endl;
+	}
+
+	if (from->cost >= 0)
+	{
+		cout << from->cost << " " << from->numGems << endl;
+	}
+	else
+	{
+		cout << "IMPOSSIBLE" << endl;
+	}	return 0;
+}
